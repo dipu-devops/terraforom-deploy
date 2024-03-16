@@ -45,15 +45,11 @@ jobs:
           echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
 
       - name: Log Selected Environment
-        run: |
-          echo "Selected environment is: ${ENVIRONMENT}"
-        env:
-          ENVIRONMENT: ${{ env.ENVIRONMENT }}
+        run: echo "Selected environment is: ${{ env.ENVIRONMENT }}"
 
       - name: Terraform Init
         run: |
           terraform init -backend-config="storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }}" -backend-config="container_name=tfstate" -backend-config="key=terraform.tfstate" -backend-config="access_key=$STORAGE_ACCOUNT_KEY"
-
 
 
 # name: Terraform
