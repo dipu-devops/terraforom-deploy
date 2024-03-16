@@ -1,0 +1,6 @@
+resource_group_name = "azureapp-resources"
+location            = "West Europe"
+service_plan_name   = "azureappjia"
+sku_name            = "B1"
+os_type             = "Windows"
+web_app_name        = "azureappjia"
