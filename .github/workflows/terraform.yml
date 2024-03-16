@@ -23,11 +23,11 @@ jobs:
       - name: Set Environment
         id: set_env
         run: |
-          if [ $GITHUB_REF = "refs/heads/main" ]; then
+          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "prod" >> $GITHUB_ENV
-          elif [ $GITHUB_REF = "refs/heads/dev_env" ]; then
+          elif [ "${GITHUB_REF}" = "refs/heads/dev_env" ]; then
             echo "dev" >> $GITHUB_ENV
-          elif [ $GITHUB_REF = "refs/heads/qa_env" ]; then
+          elif [ "${GITHUB_REF}" = "refs/heads/qa_env" ]; then
             echo "qa" >> $GITHUB_ENV
           fi
 
@@ -43,6 +43,7 @@ jobs:
         run: |
           key=$(az storage account keys list --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --query '[0].value' -o tsv)
           echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
+
       - name: Log Selected Environment
         run: |
           echo "Selected environment is: ${ENVIRONMENT}"
@@ -52,6 +53,63 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init -backend-config="storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }}" -backend-config="container_name=tfstate" -backend-config="key=terraform.tfstate" -backend-config="access_key=$STORAGE_ACCOUNT_KEY"
+
+
+
+# name: Terraform
+
+# on:
+#   push:
+#     branches:
+#       - main
+#       - dev_env
+#       - qa_env
+#   workflow_dispatch:
+
+# permissions:
+#   contents: read
+
+# jobs:
+#   terraform:
+#     name: Terraform
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v3
+
+#       - name: Set Environment
+#         id: set_env
+#         run: |
+#           if [ $GITHUB_REF = "refs/heads/main" ]; then
+#             echo "prod" >> $GITHUB_ENV
+#           elif [ $GITHUB_REF = "refs/heads/dev_env" ]; then
+#             echo "dev" >> $GITHUB_ENV
+#           elif [ $GITHUB_REF = "refs/heads/qa_env" ]; then
+#             echo "qa" >> $GITHUB_ENV
+#           fi
+
+#       - name: Install Azure CLI
+#         run: |
+#           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+#       - name: Login to Azure
+#         run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+#       - name: Get Storage Account Key
+#         id: storage_key
+#         run: |
+#           key=$(az storage account keys list --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --query '[0].value' -o tsv)
+#           echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
+#       - name: Log Selected Environment
+#         run: |
+#           echo "Selected environment is: ${ENVIRONMENT}"
+#         env:
+#           ENVIRONMENT: ${{ env.ENVIRONMENT }}
+
+#       - name: Terraform Init
+#         run: |
+#           terraform init -backend-config="storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }}" -backend-config="container_name=tfstate" -backend-config="key=terraform.tfstate" -backend-config="access_key=$STORAGE_ACCOUNT_KEY"
 
 
 # name: Terraform
