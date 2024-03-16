@@ -1,9 +1,18 @@
 name: Terraform
 
+
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+      - dev_env
+      - qa_env
+      - test
   pull_request:
+# on:
+#   push:
+#     branches: [ "main" ]
+#   pull_request:
 
 permissions:
   contents: read
@@ -29,11 +38,11 @@ jobs:
       run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
 
     # Retrieve Azure Storage Account Key
-    - name: Get Storage Account Key
-      id: storage_key
-      run: |
-        key=$(az storage account keys list --account-name terraformdeployji --resource-group azureapp-resources --query '[0].value' -o tsv)
-        echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
+    # - name: Get Storage Account Key
+    #   id: storage_key
+    #   run: |
+    #     key=$(az storage account keys list --account-name terraformdeployji --resource-group azureapp-resources --query '[0].value' -o tsv)
+    #     echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
 
     # Initialize Terraform with Azure Storage as backend
     - name: Terraform Init
