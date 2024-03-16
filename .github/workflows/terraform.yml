@@ -23,13 +23,14 @@ jobs:
       - name: Set Environment
         id: set_env
         run: |
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "prod" >> $GITHUB_ENV
-          elif [ "${GITHUB_REF}" = "refs/heads/dev_env" ]; then
+          elif [ "${{ github.ref }}" = "refs/heads/dev_env" ]; then
             echo "dev" >> $GITHUB_ENV
-          elif [ "${GITHUB_REF}" = "refs/heads/qa_env" ]; then
+          elif [ "${{ github.ref }}" = "refs/heads/qa_env" ]; then
             echo "qa" >> $GITHUB_ENV
           fi
+
 
       - name: Install Azure CLI
         run: |
