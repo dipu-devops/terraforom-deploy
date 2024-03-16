@@ -4,8 +4,8 @@ provider "azurerm" {
 
 terraform {
   backend "azurerm" {
-    resource_group_name  = "azureapp-resources"
-    storage_account_name = "terraformdeployji"
+    resource_group_name  = "dev_env"
+    storage_account_name = "devenvstorageji"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
   }
