@@ -1,0 +1,45 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - main
+      - dev_env
+      - qa_env
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.ref == 'refs/heads/main' && 'prod' || github.event.ref == 'refs/heads/dev_env' && 'dev' || github.event.ref == 'refs/heads/qa_env' && 'qa' || '' }}
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Install Azure CLI
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+      # Login to Azure using a Service Principal
+      - name: Login to Azure
+        run: az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+      # Retrieve Azure Storage Account Key based on environment
+      - name: Get Storage Account Key
+        id: storage_key
+        run: |
+          key=$(az storage account keys list --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }}_${{ github.event.environment }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --query '[0].value' -o tsv)
+          echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
+
+      # Initialize Terraform with Azure Storage as backend
+      - name: Terraform Init
+        run: |
+          terraform init -backend-config="storage_account_name=${{ secrets.STORAGE_ACCOUNT_NAME }}_${{ github.event.environment }}" -backend-config="container_name=tfstate" -backend-config="key=terraform.tfstate" -backend-config="access_key=$STORAGE_ACCOUNT_KEY"
