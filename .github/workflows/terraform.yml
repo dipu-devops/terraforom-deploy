@@ -44,8 +44,8 @@ jobs:
           key=$(az storage account keys list --account-name ${{ secrets.STORAGE_ACCOUNT_NAME }}${{ env.ENVIRONMENT }} --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} --query '[0].value' -o tsv)
           echo "STORAGE_ACCOUNT_KEY=$key" >> $GITHUB_ENV
 
-      - name: Log Selected Environment
-        run: echo "Selected environment is: ${{ env.ENVIRONMENT }}"
+      # - name: Log Selected Environment
+      #   run: echo "Selected environment is: ${{ env.ENVIRONMENT }}"
 
       - name: Terraform Init
         run: |
