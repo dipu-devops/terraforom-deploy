@@ -21,4 +21,4 @@ module "azure_web_app" {
   web_app_name                   = var.web_app_name
 }
 
-# You can include more Terraform code here or reference other modules
+# You can include more Terraform code here or reference other moduless
