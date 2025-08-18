@@ -7,11 +7,10 @@ stages:
     displayName: "Terraform Plan"
     jobs:
     - job: Plan_Job
-      pool: 'Default'
+      pool: 'Hosted Agent'
       steps:
       - checkout: self
       
-      # Install Terraform
       - task: TerraformInstaller@0
         inputs:
           terraformVersion: $(tf_version)
@@ -25,24 +24,24 @@ stages:
           
         displayName: 'Set Terraform Environment Variables'
         
-      # Terraform Init
+      # Terraform Init for dev environment
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
           command: 'init'
-          workingDirectory: '$(System.DefaultWorkingDirectory)'
+          workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
           commandOptions: '-reconfigure'
           backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
           
-      # Terraform Plan
+      # Terraform Plan for dev environment
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
           command: 'plan'
-          workingDirectory: '$(System.DefaultWorkingDirectory)'
-          commandOptions: '-out=tfplan -var="environment=$(environment)"'
+          workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+          commandOptions: '-out=tfplan -var-file=terraform.tfvars'
           
-      - publish: $(System.DefaultWorkingDirectory)/tfplan
+      - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
         artifact: tfplan
 
   - stage: Apply
@@ -67,17 +66,17 @@ stages:
                 
               displayName: 'Set Environment Variables'
               
-            # Install Terraform
             - task: TerraformInstaller@0
               inputs:
                 terraformVersion: $(tf_version)
                 
-            # Terraform Apply
+            # Terraform Apply for dev environments
             - task: TerraformTask@5
               inputs:
                 provider: 'azurerm'
                 command: 'apply'
-                commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
+                workingDirectory: '$(Pipeline.Workspace)/tfplan'
+                commandOptions: 'tfplan'
                 
             - script: |
                 echo "Verifying state file"
