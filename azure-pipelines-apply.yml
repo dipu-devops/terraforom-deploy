@@ -7,7 +7,7 @@ stages:
     displayName: "Terraform Plan"
     jobs:
     - job: Plan_Job
-      pool: 'Hosted Agent'
+      pool: 'Default'
       steps:
       - checkout: self
       

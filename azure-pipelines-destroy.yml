@@ -7,7 +7,7 @@ stages:
     displayName: "Preparation"
     jobs:
     - job: Backup_Job
-      pool: 'Hosted Agent'
+      pool: 'Default'
       steps:
       - script: |
           echo "Backing up state file"
