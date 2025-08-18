@@ -3,7 +3,7 @@
 #     main    = module.storage_statsfiledev.name
 #     sftp    = module.storage_statsfileshpdev.name
 #     malware = module.storage_statsfilemdsdev.name
-#     archive = module.storage_statsfilearchdev.name
+#     archive = module.storage_statsfilearchdev.names
 #   }
 # }
 output "storage_accounts_ids" {
