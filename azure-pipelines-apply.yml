@@ -31,21 +31,20 @@ stages:
           export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
           
         displayName: 'Set Terraform Environment Variables'
-        
-      # Terraform Inits
+      
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
           command: 'init'
           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-          commandOptions: '-reconfigure'
           backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-          backendAzureRmResourceGroupName: $(STATE_RG)
-          backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
-          backendAzureRmContainerName: $(container_name)
-          backendAzureRmKey: $(STATE_KEY)
-          environmentServiceNameAzureRM: 'AzureSP'
-          
+          backendAzureRmOverrideSubscriptionID: '$(ARM_SUBSCRIPTION_ID)'
+          backendAzureRmResourceGroupName: '$(ARM_SUBSCRIPTION_ID)'
+          backendAzureRmStorageAccountName: '$(STORAGE_ACCOUNT_NAME)'
+          backendAzureRmContainerName: '$(container_name)'
+          backendAzureRmKey: '$(STATE_KEY)'
+
+
       # Terraform Plan
       - task: TerraformTask@5
         inputs:
@@ -53,7 +52,7 @@ stages:
           command: 'plan'
           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
           commandOptions: '-out=tfplan -var-file=terraform.tfvars'
-          environmentServiceNameAzureRM: 'AzureSP'
+          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
           
       - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
         artifact: tfplan
@@ -91,7 +90,7 @@ stages:
                 command: 'apply'
                 workingDirectory: '$(Pipeline.Workspace)/tfplan'
                 commandOptions: 'tfplan'
-                environmentServiceNameAzureRM: 'AzureSP'
+                backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
             - script: |
                 echo "Verifying state file"
