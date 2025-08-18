@@ -1,8 +1,7 @@
 trigger:
   branches:
     include:
-      - dev
-      - main  # Trigger on changes to dev branch
+      - main # Trigger on changes to dev branch
   paths:
     include:
       - environments/dev/*  # Only trigger when dev environment changes
