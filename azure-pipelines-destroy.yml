@@ -46,19 +46,25 @@ stages:
                 
               displayName: 'Set Environment Variables'
               
+            # Install Terraform
             - task: TerraformInstaller@0
               inputs:
                 terraformVersion: $(tf_version)
                 
-            - task: TerraformCLI@0
+            # Terraform Init
+            - task: TerraformTask@5
               inputs:
-                command: init
+                provider: 'azurerm'
+                command: 'init'
                 workingDirectory: '$(System.DefaultWorkingDirectory)'
                 commandOptions: '-reconfigure'
+                backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
-            - task: TerraformCLI@0
+            # Terraform Destroy
+            - task: TerraformTask@5
               inputs:
-                command: destroy
+                provider: 'azurerm'
+                command: 'destroy'
                 workingDirectory: '$(System.DefaultWorkingDirectory)'
                 commandOptions: '-auto-approve -var="environment=$(environment)"'
                 

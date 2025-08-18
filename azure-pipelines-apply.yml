@@ -12,6 +12,7 @@ stages:
       steps:
       - checkout: self
       
+      # Install Terraform
       - task: TerraformInstaller@0
         inputs:
           terraformVersion: $(tf_version)
@@ -25,15 +26,20 @@ stages:
           
         displayName: 'Set Terraform Environment Variables'
         
-      - task: TerraformCLI@0
+      # Terraform Init
+      - task: TerraformTask@5
         inputs:
-          command: init
+          provider: 'azurerm'
+          command: 'init'
           workingDirectory: '$(System.DefaultWorkingDirectory)'
           commandOptions: '-reconfigure'
+          backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
           
-      - task: TerraformCLI@0
+      # Terraform Plan
+      - task: TerraformTask@5
         inputs:
-          command: plan
+          provider: 'azurerm'
+          command: 'plan'
           workingDirectory: '$(System.DefaultWorkingDirectory)'
           commandOptions: '-out=tfplan -var="environment=$(environment)"'
           
@@ -62,13 +68,16 @@ stages:
                 
               displayName: 'Set Environment Variables'
               
+            # Install Terraform
             - task: TerraformInstaller@0
               inputs:
                 terraformVersion: $(tf_version)
                 
-            - task: TerraformCLI@0
+            # Terraform Apply
+            - task: TerraformTask@5
               inputs:
-                command: apply
+                provider: 'azurerm'
+                command: 'apply'
                 commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
                 
             - script: |
