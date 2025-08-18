@@ -1,10 +1,10 @@
 trigger:
   branches:
     include:
-      - main # Trigger on changes to dev branch
+      - main
   paths:
     include:
-      - environments/dev/*  # Only trigger when dev environment changes
+      - environments/dev/*
 
 variables:
 - group: dev-secrets
@@ -15,7 +15,7 @@ stages:
     displayName: "Terraform Plan"
     jobs:
     - job: Plan_Job
-      pool: 'Default'  # Using your Default agent pool
+      pool: 'Default'
       steps:
       - checkout: self
       
@@ -32,7 +32,7 @@ stages:
           
         displayName: 'Set Terraform Environment Variables'
         
-      # Terraform Init for dev environment
+      # Terraform Init
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
@@ -44,14 +44,16 @@ stages:
           backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
           backendAzureRmContainerName: $(container_name)
           backendAzureRmKey: $(STATE_KEY)
+          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
           
-      # Terraform Plan for dev environment
+      # Terraform Plan
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
           command: 'plan'
           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
           commandOptions: '-out=tfplan -var-file=terraform.tfvars'
+          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
           
       - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
         artifact: tfplan
@@ -82,13 +84,14 @@ stages:
               inputs:
                 terraformVersion: $(tf_version)
                 
-            # Terraform Apply for dev environment
+            # Terraform Apply
             - task: TerraformTask@5
               inputs:
                 provider: 'azurerm'
                 command: 'apply'
                 workingDirectory: '$(Pipeline.Workspace)/tfplan'
                 commandOptions: 'tfplan'
+                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
             - script: |
                 echo "Verifying state file"

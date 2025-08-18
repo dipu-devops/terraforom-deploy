@@ -1,4 +1,4 @@
-trigger: none  # No automatic triggers - manual only
+trigger: none
 
 variables:
 - group: dev-secrets
@@ -9,7 +9,7 @@ stages:
     displayName: "Preparation"
     jobs:
     - job: Backup_Job
-      pool: 'Default'  # Using your Default agent pool
+      pool: 'Default'
       steps:
       - script: |
           echo "Backing up state file"
@@ -51,7 +51,7 @@ stages:
               inputs:
                 terraformVersion: $(tf_version)
                 
-            # Terraform Init for dev environment
+            # Terraform Init
             - task: TerraformTask@5
               inputs:
                 provider: 'azurerm'
@@ -63,14 +63,16 @@ stages:
                 backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
                 backendAzureRmContainerName: $(container_name)
                 backendAzureRmKey: $(STATE_KEY)
+                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
-            # Terraform Destroy for dev environment
+            # Terraform Destroy
             - task: TerraformTask@5
               inputs:
                 provider: 'azurerm'
                 command: 'destroy'
                 workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
                 commandOptions: '-auto-approve -var-file=terraform.tfvars'
+                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
             - script: |
                 # Verify resource group is empty
