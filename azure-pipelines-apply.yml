@@ -44,7 +44,7 @@ stages:
           backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
           backendAzureRmContainerName: $(container_name)
           backendAzureRmKey: $(STATE_KEY)
-          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+          environmentServiceNameAzureRM: 'AzureSP'
           
       # Terraform Plan
       - task: TerraformTask@5
@@ -53,7 +53,7 @@ stages:
           command: 'plan'
           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
           commandOptions: '-out=tfplan -var-file=terraform.tfvars'
-          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+          environmentServiceNameAzureRM: 'AzureSP'
           
       - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
         artifact: tfplan
@@ -91,7 +91,7 @@ stages:
                 command: 'apply'
                 workingDirectory: '$(Pipeline.Workspace)/tfplan'
                 commandOptions: 'tfplan'
-                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+                environmentServiceNameAzureRM: 'AzureSP'
                 
             - script: |
                 echo "Verifying state file"
