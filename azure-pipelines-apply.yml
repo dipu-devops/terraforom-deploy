@@ -32,7 +32,7 @@ stages:
           
         displayName: 'Set Terraform Environment Variables'
         
-      # Terraform Init
+      # Terraform Inits
       - task: TerraformTask@5
         inputs:
           provider: 'azurerm'
