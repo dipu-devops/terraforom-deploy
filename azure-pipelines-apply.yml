@@ -1,57 +1,85 @@
-# CI/CD for Infrastructure Deployment
-trigger:
-  branches:
-    include:
-      - main
-
 variables:
-  - group: prod-secrets
-  - name: tf_version
-    value: "1.5.7"
+- group: dev-secrets
+- group: dev-config
 
 stages:
   - stage: Plan
+    displayName: "Terraform Plan"
     jobs:
-    - job: Terraform_Plan
+    - job: Plan_Job
       pool: 
         vmImage: 'ubuntu-latest'
       steps:
+      - checkout: self
+      
       - task: TerraformInstaller@0
         inputs:
           terraformVersion: $(tf_version)
-      
+          
+      - script: |
+          echo "Configuring Terraform environment variables"
+          export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+          export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+          export ARM_TENANT_ID=$(ARM_TENANT_ID)
+          export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
+          
+        displayName: 'Set Terraform Environment Variables'
+        
       - task: TerraformCLI@0
         inputs:
           command: init
-          backendType: azurerm
-          backendServiceArm: 'azure-devops-sp'
-          backendAzureRmResourceGroupName: tfstate-rg
-          backendAzureRmStorageAccountName: <STORAGE_ACCOUNT>
-          backendAzureRmContainerName: tfstate
-          backendAzureRmKey: prod.terraform.tfstate
-
+          workingDirectory: '$(System.DefaultWorkingDirectory)'
+          commandOptions: '-reconfigure'
+          
       - task: TerraformCLI@0
         inputs:
           command: plan
-          commandOptions: '-out=tfplan -var-file=prod.tfvars'
-          environmentServiceName: 'azure-devops-sp'
-
+          workingDirectory: '$(System.DefaultWorkingDirectory)'
+          commandOptions: '-out=tfplan -var="environment=$(environment)"'
+          
       - publish: $(System.DefaultWorkingDirectory)/tfplan
         artifact: tfplan
 
   - stage: Apply
+    displayName: "Apply Changes"
     dependsOn: Plan
     condition: succeeded()
     jobs:
-    - deployment: Apply_Changes
-      environment: Production-Apply
+    - deployment: Apply_Job
+      environment: Dev-Apply
       strategy:
         runOnce:
           deploy:
             steps:
             - download: current
               artifact: tfplan
+              
+            - script: |
+                export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+                export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+                export ARM_TENANT_ID=$(ARM_TENANT_ID)
+                export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
+                
+              displayName: 'Set Environment Variables'
+              
+            - task: TerraformInstaller@0
+              inputs:
+                terraformVersion: $(tf_version)
+                
             - task: TerraformCLI@0
               inputs:
                 command: apply
                 commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
+                
+            - script: |
+                echo "Verifying state file"
+                az storage blob show \
+                  --account-name $(STORAGE_ACCOUNT_NAME) \
+                  --container-name $(container_name) \
+                  --name $(STATE_KEY) \
+                  --auth-mode login
+              displayName: 'State File Validation'
+              env:
+                AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+                AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+                AZURE_TENANT_ID: $(ARM_TENANT_ID)

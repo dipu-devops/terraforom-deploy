@@ -1,39 +1,51 @@
-# Dedicated Destruction Pipeline
-trigger: none  # Manual trigger only
-
-parameters:
-- name: environment
-  displayName: Environment to Destroy
-  type: string
-  default: prod
-  values: 
-  - prod
-
 variables:
-  - group: prod-secrets
-  - name: tf_version
-    value: "1.5.7"
+- group: dev-secrets
+- group: dev-config
 
 stages:
-  - stage: Validate_Destroy
+  - stage: PreDestroy
+    displayName: "Preparation"
     jobs:
-    - job: Confirm_Scope
+    - job: Backup_Job
+      pool: 
+        vmImage: 'ubuntu-latest'
       steps:
       - script: |
-          echo "DESTRUCTION REQUESTED FOR: ${{ parameters.environment }}"
-          echo "Requested by: $(Build.RequestedFor)"
-          echo "This will destroy ALL resources!"
-        displayName: '⚠️ Destruction Scope Warning'
+          echo "Backing up state file"
+          timestamp=$(date +%Y%m%d-%H%M%S)
+          az storage blob copy start \
+            --account-name $(STORAGE_ACCOUNT_NAME) \
+            --source-container $(container_name) \
+            --source-blob $(STATE_KEY) \
+            --destination-container $(container_name)-backups \
+            --destination-blob $(STATE_KEY).$timestamp \
+            --auth-mode login
+        displayName: 'State File Backup'
+        env:
+          AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+          AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+          AZURE_TENANT_ID: $(ARM_TENANT_ID)
 
   - stage: Destroy
-    dependsOn: Validate_Destroy
+    displayName: "Destroy Infrastructure"
+    dependsOn: PreDestroy
     jobs:
-    - deployment: Execute_Destroy
-      environment: Production-Destroy
+    - deployment: Destroy_Job
+      environment: Dev-Destroy
       strategy:
         runOnce:
           deploy:
             steps:
+            - checkout: self
+            
+            - script: |
+                export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+                export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+                export ARM_TENANT_ID=$(ARM_TENANT_ID)
+                export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
+                
+              displayName: 'Set Environment Variables'
+              
             - task: TerraformInstaller@0
               inputs:
                 terraformVersion: $(tf_version)
@@ -41,15 +53,24 @@ stages:
             - task: TerraformCLI@0
               inputs:
                 command: init
-                backendType: azurerm
-                backendServiceArm: 'azure-devops-sp'
-                backendAzureRmResourceGroupName: tfstate-rg
-                backendAzureRmStorageAccountName: <STORAGE_ACCOUNT>
-                backendAzureRmContainerName: tfstate
-                backendAzureRmKey: prod.terraform.tfstate
+                workingDirectory: '$(System.DefaultWorkingDirectory)'
+                commandOptions: '-reconfigure'
                 
             - task: TerraformCLI@0
               inputs:
                 command: destroy
-                commandOptions: '-auto-approve -var-file=${{ parameters.environment }}.tfvars'
-                environmentServiceName: 'azure-devops-sp'
+                workingDirectory: '$(System.DefaultWorkingDirectory)'
+                commandOptions: '-auto-approve -var="environment=$(environment)"'
+                
+            - script: |
+                # Verify resource group is empty
+                resources=$(az resource list -g $(resource_group) --query "[?contains(type, 'Microsoft.Storage') == \`false\`]" --output tsv)
+                if [ -n "$resources" ]; then
+                  echo "##vso[task.logissue type=error]Resources still exist in resource group!"
+                  exit 1
+                fi
+              displayName: 'Resource Group Validation'
+              env:
+                AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+                AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+                AZURE_TENANT_ID: $(ARM_TENANT_ID)

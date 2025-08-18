@@ -26,6 +26,12 @@ terraform {
       version = "~> 0.9.1"
     }
   }
+  backend "azurerm" {
+    resource_group_name  = "ais-tfstate-rgji"
+    storage_account_name = "aistfstatedevji"
+    container_name       = "tfstate"
+    key                  = "ais-infra-dev.tfstate"
+  }
 }
 
 provider "azurerm" {
