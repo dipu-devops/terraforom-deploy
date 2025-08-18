@@ -1,0 +1,55 @@
+# Dedicated Destruction Pipeline
+trigger: none  # Manual trigger only
+
+parameters:
+- name: environment
+  displayName: Environment to Destroy
+  type: string
+  default: prod
+  values: 
+  - prod
+
+variables:
+  - group: prod-secrets
+  - name: tf_version
+    value: "1.5.7"
+
+stages:
+  - stage: Validate_Destroy
+    jobs:
+    - job: Confirm_Scope
+      steps:
+      - script: |
+          echo "DESTRUCTION REQUESTED FOR: ${{ parameters.environment }}"
+          echo "Requested by: $(Build.RequestedFor)"
+          echo "This will destroy ALL resources!"
+        displayName: '⚠️ Destruction Scope Warning'
+
+  - stage: Destroy
+    dependsOn: Validate_Destroy
+    jobs:
+    - deployment: Execute_Destroy
+      environment: Production-Destroy
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - task: TerraformInstaller@0
+              inputs:
+                terraformVersion: $(tf_version)
+                
+            - task: TerraformCLI@0
+              inputs:
+                command: init
+                backendType: azurerm
+                backendServiceArm: 'azure-devops-sp'
+                backendAzureRmResourceGroupName: tfstate-rg
+                backendAzureRmStorageAccountName: <STORAGE_ACCOUNT>
+                backendAzureRmContainerName: tfstate
+                backendAzureRmKey: prod.terraform.tfstate
+                
+            - task: TerraformCLI@0
+              inputs:
+                command: destroy
+                commandOptions: '-auto-approve -var-file=${{ parameters.environment }}.tfvars'
+                environmentServiceName: 'azure-devops-sp'

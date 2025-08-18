@@ -1,0 +1,57 @@
+# CI/CD for Infrastructure Deployment
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: prod-secrets
+  - name: tf_version
+    value: "1.5.7"
+
+stages:
+  - stage: Plan
+    jobs:
+    - job: Terraform_Plan
+      pool: 
+        vmImage: 'ubuntu-latest'
+      steps:
+      - task: TerraformInstaller@0
+        inputs:
+          terraformVersion: $(tf_version)
+      
+      - task: TerraformCLI@0
+        inputs:
+          command: init
+          backendType: azurerm
+          backendServiceArm: 'azure-devops-sp'
+          backendAzureRmResourceGroupName: tfstate-rg
+          backendAzureRmStorageAccountName: <STORAGE_ACCOUNT>
+          backendAzureRmContainerName: tfstate
+          backendAzureRmKey: prod.terraform.tfstate
+
+      - task: TerraformCLI@0
+        inputs:
+          command: plan
+          commandOptions: '-out=tfplan -var-file=prod.tfvars'
+          environmentServiceName: 'azure-devops-sp'
+
+      - publish: $(System.DefaultWorkingDirectory)/tfplan
+        artifact: tfplan
+
+  - stage: Apply
+    dependsOn: Plan
+    condition: succeeded()
+    jobs:
+    - deployment: Apply_Changes
+      environment: Production-Apply
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - download: current
+              artifact: tfplan
+            - task: TerraformCLI@0
+              inputs:
+                command: apply
+                commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
