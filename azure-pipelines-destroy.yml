@@ -7,8 +7,7 @@ stages:
     displayName: "Preparation"
     jobs:
     - job: Backup_Job
-      pool: 
-        vmImage: 'ubuntu-latest'
+      pool: 'Default'
       steps:
       - script: |
           echo "Backing up state file"

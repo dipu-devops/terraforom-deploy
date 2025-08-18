@@ -7,8 +7,7 @@ stages:
     displayName: "Terraform Plan"
     jobs:
     - job: Plan_Job
-      pool: 
-        vmImage: 'ubuntu-latest'
+      pool: 'Default'
       steps:
       - checkout: self
       
