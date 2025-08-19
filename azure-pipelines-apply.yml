@@ -72,8 +72,7 @@ stages:
             # Download the tfplan artifact from the Plan stage
             - download: current
               artifact: tfplan
-              downloadPath: $(Pipeline.Workspace)/tfplan
-
+              
             - script: |
                 echo "Configuring Terraform environment variables"
                 export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
