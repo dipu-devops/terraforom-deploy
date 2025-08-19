@@ -11,16 +11,21 @@ stages:
     - job: Backup_Job
       pool: 'Default'
       steps:
-      - script: |
-          echo "Backing up state file"
-          timestamp=$(date +%Y%m%d-%H%M%S)
-          az storage blob copy start \
-            --account-name $(STORAGE_ACCOUNT_NAME) \
-            --source-container $(container_name) \
-            --source-blob $(STATE_KEY) \
-            --destination-container $(container_name)-backups \
-            --destination-blob $(STATE_KEY).$timestamp \
-            --auth-mode login
+      - task: AzureCLI@2
+        inputs:
+          azureSubscription: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+          scriptType: 'ps'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            echo "Backing up state file"
+                      timestamp=$(date +%Y%m%d-%H%M%S)
+                      az storage blob copy start \
+                        --account-name $(STORAGE_ACCOUNT_NAME) \
+                        --source-container $(container_name) \
+                        --source-blob $(STATE_KEY) \
+                        --destination-container $(container_name)-backups \
+                        --destination-blob $(STATE_KEY).$timestamp \
+                        --auth-mode login
         displayName: 'State File Backup'
         env:
           AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
@@ -32,6 +37,7 @@ stages:
     dependsOn: PreDestroy
     jobs:
     - deployment: Destroy_Job
+      pool: 'Default'
       environment: Dev-Destroy
       strategy:
         runOnce:
