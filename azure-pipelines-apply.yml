@@ -7,213 +7,102 @@ trigger:
       - environments/dev/*
 
 variables:
-  - group: dev-secrets
-  - group: dev-config
+- group: dev-secrets
+- group: dev-config
 
 stages:
   - stage: Plan
     displayName: "Terraform Plan"
     jobs:
-      - job: Plan_Job
-        pool: 'Default'
-        steps:
-          - checkout: self
+    - job: Plan_Job
+      pool: 'Default'
+      steps:
+      - checkout: self
+      
+      - task: TerraformInstaller@0
+        inputs:
+          terraformVersion: $(tf_version)
           
-          - task: TerraformInstaller@0
-            inputs:
-              terraformVersion: $(tf_version)
-              
-          - script: |
-              echo "Configuring Terraform environment variables"
-              export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
-              export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
-              export ARM_TENANT_ID=$(ARM_TENANT_ID)
-              export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
-            displayName: 'Set Terraform Environment Variables'
+      - script: |
+          echo "Configuring Terraform environment variables"
+          export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+          export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+          export ARM_TENANT_ID=$(ARM_TENANT_ID)
+          export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
           
-          - task: TerraformTask@5
-            inputs:
-              provider: 'azurerm'
-              command: 'init'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-              backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-              backendAzureRmOverrideSubscriptionID: '$(ARM_SUBSCRIPTION_ID)'
-              backendAzureRmResourceGroupName: '$(ARM_SUBSCRIPTION_ID)'
-              backendAzureRmStorageAccountName: '$(STORAGE_ACCOUNT_NAME)'
-              backendAzureRmContainerName: '$(container_name)'
-              backendAzureRmKey: '$(STATE_KEY)'
-              
-          - task: TerraformTask@5
-            inputs:
-              provider: 'azurerm'
-              command: 'plan'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-              commandOptions: '-out=tfplan -var-file=terraform.tfvars'
-              environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+        displayName: 'Set Terraform Environment Variables'
+      
+      - task: TerraformTask@5
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+          backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+          backendAzureRmOverrideSubscriptionID: '$(ARM_SUBSCRIPTION_ID)'
+          backendAzureRmResourceGroupName: '$(ARM_SUBSCRIPTION_ID)'
+          backendAzureRmStorageAccountName: '$(STORAGE_ACCOUNT_NAME)'
+          backendAzureRmContainerName: '$(container_name)'
+          backendAzureRmKey: '$(STATE_KEY)'
 
-          - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
-            artifact: tfplan
+
+      # Terraform Plan
+      - task: TerraformTask@5
+        inputs:
+          provider: 'azurerm'
+          command: 'plan'
+          workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+          commandOptions: '-out=tfplan -var-file=terraform.tfvars'
+          environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+          
+      - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
+        artifact: tfplan
 
   - stage: Apply
     displayName: "Apply Changes"
     dependsOn: Plan
     condition: succeeded()
     jobs:
-      - deployment: Apply_Job
-        pool: 'Default'
-        environment: Dev-Apply
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - download: current
-                  artifact: tfplan
-                
-                - script: |
-                    echo "Configuring Terraform environment variables"
-                    export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
-                    export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
-                    export ARM_TENANT_ID=$(ARM_TENANT_ID)
-                    export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
-                  displayName: 'Set Terraform Environment Variables'
-
-                - task: TerraformInstaller@0
-                  inputs:
-                    terraformVersion: $(tf_version)
-                
-                - task: TerraformTask@5
-                  inputs:
-                    provider: 'azurerm'
-                    command: 'init'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'  # Ensure init is rerun
-                    backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-
-                - task: TerraformTask@5
-                  inputs:
-                    provider: 'azurerm'
-                    command: 'apply'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'  # Correct working directory
-                    commandOptions: '-auto-approve tfplan'
-                    environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-
-                - script: |
-                    echo "Verifying state file"
-                    az storage blob show \
-                      --account-name $(STORAGE_ACCOUNT_NAME) \
-                      --container-name $(container_name) \
-                      --name $(STATE_KEY) \
-                      --auth-mode login
-                  displayName: 'State File Validation'
-                  env:
-                    AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
-                    AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-                    AZURE_TENANT_ID: $(ARM_TENANT_ID)
-
-
-# trigger:
-#   branches:
-#     include:
-#       - main
-#   paths:
-#     include:
-#       - environments/dev/*
-
-# variables:
-# - group: dev-secrets
-# - group: dev-config
-
-# stages:
-#   - stage: Plan
-#     displayName: "Terraform Plan"
-#     jobs:
-#     - job: Plan_Job
-#       pool: 'Default'
-#       steps:
-#       - checkout: self
-      
-#       - task: TerraformInstaller@0
-#         inputs:
-#           terraformVersion: $(tf_version)
-          
-#       - script: |
-#           echo "Configuring Terraform environment variables"
-#           export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
-#           export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
-#           export ARM_TENANT_ID=$(ARM_TENANT_ID)
-#           export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
-          
-#         displayName: 'Set Terraform Environment Variables'
-      
-#       - task: TerraformTask@5
-#         inputs:
-#           provider: 'azurerm'
-#           command: 'init'
-#           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-#           backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-#           backendAzureRmOverrideSubscriptionID: '$(ARM_SUBSCRIPTION_ID)'
-#           backendAzureRmResourceGroupName: '$(ARM_SUBSCRIPTION_ID)'
-#           backendAzureRmStorageAccountName: '$(STORAGE_ACCOUNT_NAME)'
-#           backendAzureRmContainerName: '$(container_name)'
-#           backendAzureRmKey: '$(STATE_KEY)'
-
-
-#       # Terraform Plan
-#       - task: TerraformTask@5
-#         inputs:
-#           provider: 'azurerm'
-#           command: 'plan'
-#           workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-#           commandOptions: '-out=tfplan -var-file=terraform.tfvars'
-#           environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-          
-#       - publish: $(System.DefaultWorkingDirectory)/environments/dev/tfplan
-#         artifact: tfplan
-
-#   - stage: Apply
-#     displayName: "Apply Changes"
-#     dependsOn: Plan
-#     condition: succeeded()
-#     jobs:
-#     - deployment: Apply_Job
-#       pool: 'Default'
-#       environment: Dev-Apply
-#       strategy:
-#         runOnce:
-#           deploy:
-#             steps:
-#             - download: current
-#               artifact: tfplan
+    - deployment: Apply_Job
+      pool: 'Default'
+      environment: Dev-Apply
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - download: current
+              artifact: tfplan
+              path: $(System.DefaultWorkingDirectory)/environments/dev
               
-#             - script: |
-#                 export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
-#                 export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
-#                 export ARM_TENANT_ID=$(ARM_TENANT_ID)
-#                 export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
+            - script: |
+                export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+                export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+                export ARM_TENANT_ID=$(ARM_TENANT_ID)
+                export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
                 
-#               displayName: 'Set Environment Variables'
+              displayName: 'Set Environment Variables'
               
-#             - task: TerraformInstaller@0
-#               inputs:
-#                 terraformVersion: $(tf_version)
+            - task: TerraformInstaller@0
+              inputs:
+                terraformVersion: $(tf_version)
                 
-#             # Terraform Apply
-#             - task: TerraformTask@5
-#               inputs:
-#                 provider: 'azurerm'
-#                 command: 'apply'
-#                 workingDirectory: '$(Pipeline.Workspace)/tfplan'
-#                 commandOptions: 'tfplan'
-#                 environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+            # Terraform Apply
+            - task: TerraformTask@5
+              inputs:
+                provider: 'azurerm'
+                command: 'apply'
+                workingDirectory: $(System.DefaultWorkingDirectory)/environments/dev
+                commandOptions: 'tfplan'
+                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                 
-#             - script: |
-#                 echo "Verifying state file"
-#                 az storage blob show \
-#                   --account-name $(STORAGE_ACCOUNT_NAME) \
-#                   --container-name $(container_name) \
-#                   --name $(STATE_KEY) \
-#                   --auth-mode login
-#               displayName: 'State File Validation'
-#               env:
-#                 AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
-#                 AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-#                 AZURE_TENANT_ID: $(ARM_TENANT_ID)
+            - script: |
+                echo "Verifying state file"
+                az storage blob show \
+                  --account-name $(STORAGE_ACCOUNT_NAME) \
+                  --container-name $(container_name) \
+                  --name $(STATE_KEY) \
+                  --auth-mode login
+              displayName: 'State File Validation'
+              env:
+                AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+                AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+                AZURE_TENANT_ID: $(ARM_TENANT_ID)
