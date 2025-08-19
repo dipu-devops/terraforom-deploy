@@ -32,6 +32,7 @@ stages:
             displayName: 'Set Terraform Environment Variables'
       
           - task: TerraformTask@5
+            name: Terraform_init
             inputs:
               provider: 'azurerm'
               command: 'init'
@@ -45,6 +46,7 @@ stages:
 
           # Terraform Plan
           - task: TerraformTask@5
+            name: Terraform_plan
             inputs:
               provider: 'azurerm'
               command: 'plan'
@@ -89,6 +91,7 @@ stages:
 
                 # Ensure Terraform modules are initialized
                 - task: TerraformTask@5
+                  name: Terraform_init
                   inputs:
                     provider: 'azurerm'
                     command: 'init'
@@ -102,6 +105,7 @@ stages:
 
                 # Terraform Apply - Use the downloaded tfplan file
                 - task: TerraformTask@5
+                  name: Terraform_apply
                   inputs:
                     provider: 'azurerm'
                     command: 'apply'
@@ -111,9 +115,15 @@ stages:
 
                 # Verify the state file
                 # List out resources to be created
-                - script: |
-                    echo "Listing resources to be created from the tfplan"
-                    terraform show -json $(Pipeline.Workspace)/tfplan/tfplan | jq '.resource_changes | select(.change.actions | index("create")) | .address'
+                - task: TerraformTask@5
+                  name: Terraform_Show
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'show'
+                    commandOptions: '-json $(Pipeline.Workspace)/tfplan/tfplan'
+                    outputTo: 'console'
+                    outputFormat: 'default'
+                    environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
                   displayName: 'List Resources to be Created'
                   env:
                     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
