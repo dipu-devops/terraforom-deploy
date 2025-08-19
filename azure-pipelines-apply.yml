@@ -94,6 +94,11 @@ stages:
                 command: 'init'
                 workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
                 backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+                backendAzureRmOverrideSubscriptionID: '$(ARM_SUBSCRIPTION_ID)'
+                backendAzureRmResourceGroupName: '$(resource_group)'
+                backendAzureRmStorageAccountName: '$(STORAGE_ACCOUNT_NAME)'
+                backendAzureRmContainerName: '$(container_name)'
+                backendAzureRmKey: '$(STATE_KEY)'
 
             # Terraform Apply - Use the downloaded tfplan file
             - task: TerraformTask@5
