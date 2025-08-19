@@ -58,6 +58,7 @@ stages:
 
                 # Terraform Init
                 - task: TerraformTask@5
+                  name: Terraform_init
                   inputs:
                     provider: 'azurerm'
                     command: 'init'
@@ -72,6 +73,7 @@ stages:
 
                 # Terraform Destroy
                 - task: TerraformTask@5
+                  name: Terraform_Destroy
                   inputs:
                     provider: 'azurerm'
                     command: 'destroy'
@@ -80,12 +82,17 @@ stages:
                     environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
 
                 # Verify that the resource group is empty
-                - script: |
-                    resources=$(az resource list -g $(resource_group) --query "[?contains(type, 'Microsoft.Storage') == \`false\`]" --output tsv)
-                    if [ -n "$resources" ]; then
-                      echo "##vso[task.logissue type=error]Resources still exist in resource group!"
-                      exit 1
-                    fi
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      resources=$(az resource list -g $(resource_group) --query "[?contains(type, 'Microsoft.Storage') == \`false\`]" --output tsv)
+                                          if [ -n "$resources" ]; then
+                                            echo "##vso[task.logissue type=error]Resources still exist in resource group!"
+                                            exit 1
+                                          fi
                   displayName: 'Resource Group Validation'
                   env:
                     AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
