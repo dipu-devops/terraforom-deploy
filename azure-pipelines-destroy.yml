@@ -1,94 +1,93 @@
 trigger: none
 
 variables:
-- group: dev-secrets
-- group: dev-config
+  - group: dev-secrets
+  - group: dev-config
 
 stages:
   - stage: PreDestroy
     displayName: "Preparation"
     jobs:
-    - job: Backup_Job
-      pool: 'Default'
-      steps:
-      - task: AzureCLI@2
-        inputs:
-          azureSubscription: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-          scriptType: 'ps'
-          scriptLocation: 'inlineScript'
-          inlineScript: |
-            echo "Backing up state file"
-                      timestamp=$(date +%Y%m%d-%H%M%S)
-                      az storage blob copy start \
-                        --account-name $(STORAGE_ACCOUNT_NAME) \
-                        --source-container $(container_name) \
-                        --source-blob $(STATE_KEY) \
-                        --destination-container $(container_name)-backups \
-                        --destination-blob $(STATE_KEY).$timestamp \
-                        --auth-mode login
-        displayName: 'State File Backup'
-        env:
-          AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
-          AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-          AZURE_TENANT_ID: $(ARM_TENANT_ID)
+      - job: Backup_Job
+        pool: 'Default'
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+              scriptType: 'bash'  # Use bash for Linux-based agents
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Backing up state file"
+                timestamp=$(date +%Y%m%d-%H%M%S)
+                az storage blob copy start \
+                  --account-name $(STORAGE_ACCOUNT_NAME) \
+                  --source-container $(container_name) \
+                  --source-blob $(STATE_KEY) \
+                  --destination-container $(container_name)-backups \
+                  --destination-blob $(STATE_KEY).$timestamp \
+                  --auth-mode login
+            displayName: 'State File Backup'
+            env:
+              AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+              AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+              AZURE_TENANT_ID: $(ARM_TENANT_ID)
 
   - stage: Destroy
     displayName: "Destroy Infrastructure"
     dependsOn: PreDestroy
     jobs:
-    - deployment: Destroy_Job
-      pool: 'Default'
-      environment: Dev-Destroy
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-            - checkout: self
-            
-            - script: |
-                export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
-                export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
-                export ARM_TENANT_ID=$(ARM_TENANT_ID)
-                export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
-                
-              displayName: 'Set Environment Variables'
-              
-            - task: TerraformInstaller@0
-              inputs:
-                terraformVersion: $(tf_version)
-                
-            # Terraform Init
-            - task: TerraformTask@5
-              inputs:
-                provider: 'azurerm'
-                command: 'init'
-                workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-                commandOptions: '-reconfigure'
-                backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-                backendAzureRmResourceGroupName: $(STATE_RG)
-                backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
-                backendAzureRmContainerName: $(container_name)
-                backendAzureRmKey: $(STATE_KEY)
-                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-                
-            # Terraform Destroy
-            - task: TerraformTask@5
-              inputs:
-                provider: 'azurerm'
-                command: 'destroy'
-                workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
-                commandOptions: '-auto-approve -var-file=terraform.tfvars'
-                environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-                
-            - script: |
-                # Verify resource group is empty
-                resources=$(az resource list -g $(resource_group) --query "[?contains(type, 'Microsoft.Storage') == \`false\`]" --output tsv)
-                if [ -n "$resources" ]; then
-                  echo "##vso[task.logissue type=error]Resources still exist in resource group!"
-                  exit 1
-                fi
-              displayName: 'Resource Group Validation'
-              env:
-                AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
-                AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
-                AZURE_TENANT_ID: $(ARM_TENANT_ID)
+      - deployment: Destroy_Job
+        pool: 'Default'
+        environment: Dev-Destroy
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - script: |
+                    export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
+                    export ARM_CLIENT_SECRET=$(ARM_CLIENT_SECRET)
+                    export ARM_TENANT_ID=$(ARM_TENANT_ID)
+                    export ARM_SUBSCRIPTION_ID=$(ARM_SUBSCRIPTION_ID)
+                  displayName: 'Set Environment Variables'
+
+                - task: TerraformInstaller@0
+                  inputs:
+                    terraformVersion: $(tf_version)
+
+                # Terraform Init
+                - task: TerraformTask@5
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'init'
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+                    commandOptions: '-reconfigure'
+                    backendServiceArm: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+                    backendAzureRmResourceGroupName: $(STATE_RG)
+                    backendAzureRmStorageAccountName: $(STORAGE_ACCOUNT_NAME)
+                    backendAzureRmContainerName: $(container_name)
+                    backendAzureRmKey: $(STATE_KEY)
+                    environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+
+                # Terraform Destroy
+                - task: TerraformTask@5
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'destroy'
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+                    commandOptions: '-auto-approve -var-file=terraform.tfvars'
+                    environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+
+                # Verify that the resource group is empty
+                - script: |
+                    resources=$(az resource list -g $(resource_group) --query "[?contains(type, 'Microsoft.Storage') == \`false\`]" --output tsv)
+                    if [ -n "$resources" ]; then
+                      echo "##vso[task.logissue type=error]Resources still exist in resource group!"
+                      exit 1
+                    fi
+                  displayName: 'Resource Group Validation'
+                  env:
+                    AZURE_CLIENT_ID: $(ARM_CLIENT_ID)
+                    AZURE_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+                    AZURE_TENANT_ID: $(ARM_TENANT_ID)
