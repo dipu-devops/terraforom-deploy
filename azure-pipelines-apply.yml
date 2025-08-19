@@ -63,6 +63,7 @@ stages:
     condition: succeeded()
     jobs:
     - deployment: Apply_Job
+      pool: 'Default'
       environment: Dev-Apply
       strategy:
         runOnce:
