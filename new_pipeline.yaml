@@ -1,0 +1,59 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  - group: dev-secrets
+  - group: dev-config
+
+stages:
+  - stage: Plan
+    displayName: 'Terraform Plan'
+    jobs:
+      - job: terraform_plan
+        displayName: 'Terraform Plan Job'
+        pool:
+          name: 'Default'  # Using the default agent pool
+        steps:
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: 'latest'
+          - task: TerraformTask@5
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: $(Build.SourcesDirectory)/environment/dev  # Corrected working directory
+          - task: TerraformTask@5
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: $(Build.SourcesDirectory)/environment/dev  # Corrected working directory
+              environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+              commandOptions: '-out=plan.out'
+              
+  - stage: Apply
+    displayName: 'Terraform Apply'
+    dependsOn: Plan
+    condition: succeeded('Plan')
+    jobs:
+      - job: terraform_apply
+        displayName: 'Terraform Apply Job'
+        pool:
+          name: 'Default'  # Using the default agent pool
+        steps:
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: 'latest'
+          - task: TerraformTask@5
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: $(Build.SourcesDirectory)/environment/dev  # Corrected working directory
+              environmentServiceNameAzureRM: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
+              commandOptions: '-auto-approve plan.out'
