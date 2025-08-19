@@ -72,7 +72,6 @@ stages:
             - checkout: self
             - download: current
               artifact: tfplan
-              path: $(System.DefaultWorkingDirectory)/environments/dev
               
             - script: |
                 export ARM_CLIENT_ID=$(ARM_CLIENT_ID)
