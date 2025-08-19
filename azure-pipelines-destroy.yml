@@ -14,7 +14,7 @@ stages:
           - task: AzureCLI@2
             inputs:
               azureSubscription: 'Insight-pay-as-go(2ba2da7b-7bc1-4d9e-93f5-3db94434f2bc)'
-              scriptType: 'bash'  # Use bash for Linux-based agents
+              scriptType: 'bash'  # Use bash for Linux-based agentss
               scriptLocation: 'inlineScript'
               inlineScript: |
                 echo "Backing up state file"
